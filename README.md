@@ -132,11 +132,3 @@ The system will automatically fall back to:
 1. **Ollama** (if installed locally): `ollama pull llama3.2`
 2. **Chunks-only mode**: Returns relevant document snippets without LLM synthesis
 
-## 📝 Next Steps
-
-After MVP works:
-- Add stakeholder management
-- Add risk identification
-- Add gap analysis
-- Add traceability
-- Merge into main ReqPal
