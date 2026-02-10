@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="Definitions_1"
+  targetNamespace="https://example.com/bpmn/onboarding">
+
+  <bpmn:collaboration id="Collab_Onboarding">
+    <bpmn:participant id="Participant_Customer" name="Customer" processRef="Process_Customer" />
+    <bpmn:participant id="Participant_Company" name="Company" processRef="Process_Company" />
+    <bpmn:messageFlow id="MF_1" name="Submit onboarding form" sourceRef="Cust_Task_SubmitForm" targetRef="Comp_Task_Intake" />
+    <bpmn:messageFlow id="MF_2" name="Request KYC docs" sourceRef="Comp_Task_RequestDocs" targetRef="Cust_Task_UploadDocs" />
+    <bpmn:messageFlow id="MF_3" name="Send decision" sourceRef="Comp_Task_NotifyDecision" targetRef="Cust_Task_ReceiveDecision" />
+  </bpmn:collaboration>
+
+  <bpmn:process id="Process_Customer" isExecutable="false">
+    <bpmn:startEvent id="Cust_Start" name="Start onboarding" />
+    <bpmn:task id="Cust_Task_SubmitForm" name="Fill and submit onboarding form (PII)" />
+    <bpmn:task id="Cust_Task_UploadDocs" name="Upload identity documents (PII, ID images)" />
+    <bpmn:task id="Cust_Task_ReceiveDecision" name="Receive approval or rejection" />
+    <bpmn:endEvent id="Cust_End" name="Onboarding completed" />
+    <bpmn:sequenceFlow id="CFlow_1" sourceRef="Cust_Start" targetRef="Cust_Task_SubmitForm" />
+    <bpmn:sequenceFlow id="CFlow_2" sourceRef="Cust_Task_SubmitForm" targetRef="Cust_Task_UploadDocs" />
+    <bpmn:sequenceFlow id="CFlow_3" sourceRef="Cust_Task_UploadDocs" targetRef="Cust_Task_ReceiveDecision" />
+    <bpmn:sequenceFlow id="CFlow_4" sourceRef="Cust_Task_ReceiveDecision" targetRef="Cust_End" />
+  </bpmn:process>
+
+  <bpmn:process id="Process_Company" isExecutable="false">
+    <bpmn:startEvent id="Comp_Start" name="Form received" />
+    <bpmn:task id="Comp_Task_Intake" name="Intake request in Legacy CRM" />
+    <bpmn:task id="Comp_Task_RequestDocs" name="Request missing KYC documents" />
+    <bpmn:task id="Comp_Task_RunKYC" name="Run KYC check (3rd party service)" />
+    <bpmn:exclusiveGateway id="Comp_GW_Risk" name="Risk level?" />
+    <bpmn:task id="Comp_Task_ManualReview" name="Manual compliance review (high risk)" />
+    <bpmn:task id="Comp_Task_AutoApprove" name="Auto-approve (low risk)" />
+    <bpmn:task id="Comp_Task_CreateAccount" name="Create account in Core Platform" />
+    <bpmn:task id="Comp_Task_NotifyDecision" name="Notify customer decision" />
+    <bpmn:endEvent id="Comp_End" name="Case closed" />
+
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Comp_Start" targetRef="Comp_Task_Intake" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Comp_Task_Intake" targetRef="Comp_Task_RequestDocs" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Comp_Task_RequestDocs" targetRef="Comp_Task_RunKYC" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Comp_Task_RunKYC" targetRef="Comp_GW_Risk" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Comp_GW_Risk" targetRef="Comp_Task_ManualReview">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[risk == "high"]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Comp_GW_Risk" targetRef="Comp_Task_AutoApprove">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"><![CDATA[risk == "low"]]></bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Comp_Task_ManualReview" targetRef="Comp_Task_CreateAccount" />
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Comp_Task_AutoApprove" targetRef="Comp_Task_CreateAccount" />
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="Comp_Task_CreateAccount" targetRef="Comp_Task_NotifyDecision" />
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Comp_Task_NotifyDecision" targetRef="Comp_End" />
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ReqPal — RAG Dashboard</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#fff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --border:#e5e7eb;
+      --primary:#2563eb;
+      --primary2:#1d4ed8;
+      --bad:#dc2626;
+      --good:#16a34a;
+      --shadow:0 10px 26px rgba(15,23,42,.08);
+      --radius:14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--text);}
+
+    .topbar{
+      position:sticky; top:0; z-index:50;
+      background:rgba(246,247,251,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar-inner{
+      max-width:1240px; margin:0 auto; padding:14px 18px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;font-weight:850;letter-spacing:.2px;}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--primary);}
+    .badge{
+      font-size:12px; padding:4px 10px; border-radius:999px;
+      border:1px solid var(--border); background:#fff; color:var(--muted);
+    }
+
+    .btn{
+      border:0;border-radius:10px;padding:10px 12px;font-weight:750;
+      cursor:pointer;font-size:14px;transition:transform .05s ease, background .2s ease;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btn-primary{background:var(--primary);color:#fff;}
+    .btn-primary:hover{background:var(--primary2)}
+    .btn-ghost{background:#fff;border:1px solid var(--border);color:var(--text);}
+    .btn-ghost:hover{background:#f9fafb}
+    .btn-danger{background:var(--bad);color:#fff;}
+    .btn-danger:hover{filter:brightness(.95)}
+    .btn-small{padding:8px 10px;font-size:13px}
+
+    .layout{
+      max-width:1240px;margin:0 auto;
+      padding:18px 18px 42px;
+      display:grid;grid-template-columns: 360px 1fr;gap:16px;
+    }
+    @media(max-width:980px){.layout{grid-template-columns:1fr}}
+
+    .panel{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+    }
+    .panel-header{
+      padding:14px 14px 12px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .panel-header h2{
+      margin:0; font-size:13px; letter-spacing:.09em; text-transform:uppercase;
+      color:var(--muted); font-weight:800;
+    }
+    .panel-body{padding:14px}
+
+    label{font-size:12px;color:var(--muted);font-weight:650;display:block;margin-bottom:6px}
+    input, textarea, select{
+      width:100%; padding:10px 12px; border:1px solid var(--border);
+      border-radius:10px; background:#fff; font-size:14px; outline:none;
+    }
+    textarea{min-height:80px;resize:vertical}
+    input:focus, textarea:focus, select:focus{
+      border-color:rgba(37,99,235,.45);
+      box-shadow:0 0 0 4px rgba(37,99,235,.12);
+    }
+
+    .list{display:flex;flex-direction:column;gap:10px;}
+    .item{
+      border:1px solid var(--border); border-radius:12px; padding:12px;
+      background:#fff; cursor:pointer; transition:background .15s ease, border-color .15s ease;
+    }
+    .item:hover{background:#f9fafb;border-color:#dbe2ef}
+    .item.active{
+      border-color:rgba(37,99,235,.45);
+      box-shadow:0 0 0 4px rgba(37,99,235,.10);
+    }
+    .item-title{margin:0;font-size:14px;font-weight:850}
+    .item-sub{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.4}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      font-size:12px;color:var(--muted);
+      border:1px solid var(--border);background:#fff;border-radius:999px;
+      padding:4px 10px;margin-top:8px;
+    }
+
+    .hint{font-size:12px;color:var(--muted);line-height:1.5}
+    .row{display:flex;gap:10px;align-items:center}
+    .split{display:grid;grid-template-columns: 1fr 1fr;gap:12px;}
+    @media(max-width:980px){.split{grid-template-columns:1fr}}
+
+    /* Sticky question box */
+    .sticky{ position:sticky; top:70px; z-index:20; }
+
+    .dropzone{
+      border:1.5px dashed #cbd5e1; border-radius:14px; padding:14px;
+      background:#fbfdff; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .dropzone.dragover{
+      border-color:rgba(37,99,235,.6);
+      background:rgba(37,99,235,.06);
+    }
+    .dz-left{display:flex;gap:12px;align-items:flex-start}
+    .dz-icon{
+      width:40px;height:40px;border-radius:12px;
+      display:grid;place-items:center;
+      background:rgba(37,99,235,.08);color:var(--primary);font-weight:900;
+    }
+    .file-input{display:none}
+
+    .results{display:flex;flex-direction:column;gap:12px}
+    .result{
+      border:1px solid var(--border); border-radius:14px;
+      padding:14px;background:#fff;
+    }
+    .result-top{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;align-items:flex-start}
+    .r-title{margin:0;font-weight:900;font-size:14px}
+    .r-meta{margin:3px 0 0;font-size:12px;color:var(--muted)}
+    .code{
+      font-family:var(--mono); font-size:12px;
+      background:#f9fafb;border:1px solid var(--border);
+      border-radius:12px;padding:10px;white-space:pre-wrap;line-height:1.5;
+    }
+
+    /* % badge + tooltip */
+    .score-wrap{ position:relative; display:inline-flex; align-items:center; gap:8px; }
+    .score{
+      font-size:12px;font-weight:850;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--border); background:#fff; color:var(--muted);
+      white-space:nowrap;
+    }
+    .score.good{color:var(--good);border-color:rgba(22,163,74,.25);background:rgba(22,163,74,.06)}
+    .score.warn{color:#b45309;border-color:rgba(180,83,9,.25);background:rgba(180,83,9,.06)}
+    .score.bad{color:var(--bad);border-color:rgba(220,38,38,.25);background:rgba(220,38,38,.06)}
+
+    .tooltip{
+      position:absolute;
+      top:110%;
+      right:0;
+      width:min(360px, 72vw);
+      background:#0f172a;
+      color:#fff;
+      border-radius:12px;
+      padding:10px 12px;
+      box-shadow:0 14px 36px rgba(0,0,0,.25);
+      opacity:0;
+      transform:translateY(-6px);
+      transition:opacity .15s ease, transform .15s ease;
+      pointer-events:none;
+      font-size:12px;
+      line-height:1.45;
+    }
+    .score-wrap:hover .tooltip{ opacity:1; transform:translateY(0); }
+
+    .toast{
+      position:fixed; right:16px; top:16px; z-index:999;
+      background:#0f172a; color:#fff; padding:12px 14px;
+      border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,.2);
+      opacity:0; transform:translateY(-8px);
+      transition:opacity .2s ease, transform .2s ease;
+      max-width:420px;
+    }
+    .toast.show{opacity:1;transform:translateY(0)}
+
+    /* Tip box that wraps properly */
+    .tipbox{
+      display:block;
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    /* Confirm modal */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(2,6,23,.45);
+      display:none; align-items:center; justify-content:center;
+      z-index:1000; padding:16px;
+    }
+    .modal{
+      width:min(560px, 100%);
+      background:#fff; border-radius:16px;
+      border:1px solid var(--border);
+      box-shadow:0 18px 60px rgba(2,6,23,.25);
+      overflow:hidden;
+    }
+    .modal-header{
+      padding:14px 14px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modal-title{margin:0;font-weight:900;font-size:15px}
+    .modal-body{padding:14px}
+    .modal-footer{
+      padding:12px 14px;
+      border-top:1px solid var(--border);
+      display:flex; justify-content:flex-end; gap:10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="dot"></span>
+        ReqPal <span class="badge">RAG MVP</span>
+      </div>
+      <div class="row">
+        <span class="badge" id="api-status">API: …</span>
+        <button class="btn btn-ghost btn-small" onclick="refreshProjects()">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- LEFT: Projects -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Projects</h2>
+        <button class="btn btn-primary btn-small" onclick="toggleCreate()">New</button>
+      </div>
+      <div class="panel-body">
+        <div id="create-box" style="display:none;margin-bottom:14px;">
+          <div class="row" style="justify-content:space-between;gap:8px;margin-bottom:10px">
+            <div class="hint" style="font-weight:700">Create project</div>
+            <button class="btn btn-ghost btn-small" onclick="toggleCreate()">Close</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <label>Project name</label>
+              <input id="p-name" placeholder="Banking Platform Modernization" />
+            </div>
+            <div>
+              <label>Description</label>
+              <textarea id="p-desc" placeholder="Customer-facing portal with SOC2/GDPR scope"></textarea>
+            </div>
+            <div class="split">
+              <div>
+                <label>Domain</label>
+                <input id="p-domain" placeholder="Banking" />
+              </div>
+              <div>
+                <label>Intent</label>
+                <select id="p-intent">
+                  <option value="discovery">discovery</option>
+                  <option value="transformation">transformation</option>
+                  <option value="compliance">compliance</option>
+                  <option value="api_development">api_development</option>
+                  <option value="hybrid">hybrid</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label>Regulatory exposure (comma-separated)</label>
+              <input id="p-regs" placeholder="SOC2, GDPR, PCI-DSS" />
+            </div>
+            <div class="row">
+              <button class="btn btn-primary" onclick="createProject()">Create</button>
+              <button class="btn btn-ghost" onclick="toggleCreate()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="projects" class="list"></div>
+        <p class="hint" style="margin-top:10px">Select a project to manage documents and run RAG.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Main -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- Sticky question box -->
+      <div class="panel sticky">
+        <div class="panel-header">
+          <h2>Ask</h2>
+          <span class="badge" id="current-project">No project selected</span>
+        </div>
+        <div class="panel-body">
+          <div class="split">
+            <div>
+              <label>Question</label>
+              <input id="q" placeholder="What does SOC2 require for incident response in banking platforms?" />
+              <span class="tipbox">
+                The answer is generated from retrieved chunks. If the LLM is rate-limited, you may still see retrieved context with no generated answer.
+                Hover over “% match” to see how similarity is calculated.
+              </span>
+            </div>
+            <div class="split">
+              <div>
+                <label>Mode</label>
+                <select id="rag-mode">
+                  <option value="answer">Answer (RAG)</option>
+                  <option value="search">Search (chunks)</option>
+                </select>
+              </div>
+              <div>
+                <label>Top K</label>
+                <input id="topk" type="number" value="20" min="3" max="60" />
+              </div>
+              <div>
+                <label>Min similarity</label>
+                <input id="mins" type="number" step="0.05" value="0.25" min="0" max="1" />
+              </div>
+              <div style="display:flex;align-items:flex-end">
+                <button class="btn btn-primary" style="width:100%" onclick="runRag()">Run</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="rag-out" style="margin-top:14px" class="results"></div>
+        </div>
+      </div>
+
+      <!-- Project summary + delete project -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Project</h2>
+          <div class="row">
+            <button class="btn btn-danger btn-small" onclick="confirmDeleteProject()" id="btn-del-project" disabled>Delete project</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="project-summary" class="hint">Select or create a project.</div>
+        </div>
+      </div>
+
+      <!-- Documents -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Documents</h2>
+          <div class="row">
+            <select id="doc-class" style="min-width:200px">
+              <option value="regulation">regulation</option>
+              <option value="legal">legal</option>
+              <option value="audit">audit</option>
+              <option value="process">process</option>
+              <option value="specification">specification</option>
+              <option value="evidence">evidence</option>
+              <option value="decision">decision</option>
+              <option value="discovery">discovery</option>
+            </select>
+            <button class="btn btn-ghost btn-small" onclick="loadDocuments()">Reload</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="dropzone" class="dropzone">
+            <div class="dz-left">
+              <div class="dz-icon">⇪</div>
+              <div>
+                <div style="font-weight:900">Drop files here</div>
+                <div class="hint">PDF / DOCX / CSV / TXT / JSON</div>
+              </div>
+            </div>
+            <div class="row">
+              <input id="file" class="file-input" type="file" multiple accept=".pdf,.docx,.csv,.txt,.json" />
+              <button class="btn btn-primary" onclick="pickFiles()">Browse</button>
+            </div>
+          </div>
+
+          <div id="docs" style="margin-top:14px" class="results"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Confirm Modal -->
+  <div id="modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <p class="modal-title" id="modal-title">Confirm</p>
+        <button class="btn btn-ghost btn-small" onclick="closeModal()">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="hint" id="modal-text"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-danger" id="modal-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentProjectId = null;
+    let projects = [];
+
+    function toast(msg){
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 2400);
+    }
+
+    function escapeHtml(str){
+      return String(str || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    // similarity_score is expected in [0..1]; clamp anyway
+    function clamp01(x){
+      const v = Number(x);
+      if(!Number.isFinite(v)) return 0;
+      return Math.max(0, Math.min(1, v));
+    }
+    function percent(sim){ return Math.round(clamp01(sim) * 100); }
+
+    function scoreClass(sim){
+      const s = clamp01(sim);
+      if(s >= 0.55) return "good";
+      if(s >= 0.30) return "warn";
+      return "bad";
+    }
+
+    function tooltipHtml(){
+      return `
+        <b>How % match is calculated</b><br/>
+        We store vectors in Chroma using <b>cosine distance</b> (0 = identical, 2 = opposite).<br/>
+        We convert it to similarity as: <b>similarity = 1 - distance</b> and clamp to [0..1].<br/>
+        <br/>
+        So: higher % = closer meaning. It is <b>not</b> “confidence” and it’s <b>not</b> temperature.
+      `;
+    }
+
+    function toggleCreate(){
+      const box = document.getElementById("create-box");
+      box.style.display = (box.style.display === "none") ? "block" : "none";
+    }
+
+    async function apiHealth(){
+      try{
+        const r = await fetch("/");
+        const ok = r.ok;
+        const status = document.getElementById("api-status");
+        status.textContent = ok ? "API: ok" : "API: error";
+        status.style.borderColor = ok ? "rgba(22,163,74,.25)" : "rgba(220,38,38,.25)";
+        status.style.background = ok ? "rgba(22,163,74,.06)" : "rgba(220,38,38,.06)";
+        status.style.color = ok ? "var(--good)" : "var(--bad)";
+      }catch(e){
+        const status = document.getElementById("api-status");
+        status.textContent = "API: offline";
+        status.style.borderColor = "rgba(220,38,38,.25)";
+        status.style.background = "rgba(220,38,38,.06)";
+        status.style.color = "var(--bad)";
+      }
+    }
+
+    async function refreshProjects(){
+      const r = await fetch("/projects");
+      projects = await r.json();
+      renderProjects();
+
+      if(currentProjectId){
+        const still = projects.find(p => p.id === currentProjectId);
+        if(!still){
+          currentProjectId = null;
+          document.getElementById("current-project").textContent = "No project selected";
+          document.getElementById("project-summary").textContent = "Select or create a project.";
+          document.getElementById("btn-del-project").disabled = true;
+          document.getElementById("docs").innerHTML = "";
+          document.getElementById("rag-out").innerHTML = "";
+        }
+      }
+    }
+
+    function renderProjects(){
+      const list = document.getElementById("projects");
+      list.innerHTML = "";
+
+      if(!projects.length){
+        list.innerHTML = `<div class="hint">No projects yet. Click <b>New</b>.</div>`;
+        return;
+      }
+
+      projects.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "item" + (p.id === currentProjectId ? " active" : "");
+        div.onclick = () => selectProject(p.id);
+
+        const regs = (p.regulatory_exposure || []).slice(0,3).join(", ");
+        div.innerHTML = `
+          <div class="item-title">${escapeHtml(p.name || "Untitled")}</div>
+          <div class="item-sub">${escapeHtml(p.description || "")}</div>
+          <div class="pill">ID: ${p.id}${regs ? " • " + escapeHtml(regs) : ""}</div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function createProject(){
+      const name = document.getElementById("p-name").value.trim();
+      if(!name){ toast("Project name is required"); return; }
+
+      const regs = document.getElementById("p-regs").value.trim();
+      const payload = {
+        name,
+        description: document.getElementById("p-desc").value.trim(),
+        domain: document.getElementById("p-domain").value.trim(),
+        regulatory_exposure: regs ? regs.split(",").map(x=>x.trim()).filter(Boolean) : [],
+        intent: document.getElementById("p-intent").value
+      };
+
+      const r = await fetch("/projects", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      if(!r.ok){ toast("Failed to create project"); return; }
+
+      const created = await r.json();
+      toast("Project created");
+      toggleCreate();
+      await refreshProjects();
+      await selectProject(created.id);
+    }
+
+    async function selectProject(id){
+      currentProjectId = id;
+
+      const p = projects.find(x=>x.id===id);
+      document.getElementById("current-project").textContent = `Project #${id}`;
+      document.getElementById("btn-del-project").disabled = false;
+
+      document.getElementById("project-summary").innerHTML = `
+        <div style="font-weight:900;font-size:16px;margin-bottom:6px">${escapeHtml(p?.name || "")}</div>
+        <div class="hint">${escapeHtml(p?.description || "")}</div>
+        <div class="hint" style="margin-top:10px">
+          <b>Domain:</b> ${escapeHtml(p?.domain || "-")} &nbsp;|&nbsp;
+          <b>Intent:</b> ${escapeHtml(p?.intent || "-")}<br/>
+          <b>Regulatory:</b> ${escapeHtml((p?.regulatory_exposure || []).join(", ") || "-")}
+        </div>
+      `;
+
+      renderProjects();
+      await loadDocuments();
+      document.getElementById("rag-out").innerHTML = "";
+    }
+
+    // ---- Documents upload ----
+    function setupDropzone(){
+      const dz = document.getElementById("dropzone");
+      const input = document.getElementById("file");
+
+      dz.addEventListener("dragover", (e)=>{
+        e.preventDefault();
+        dz.classList.add("dragover");
+      });
+      dz.addEventListener("dragleave", ()=>dz.classList.remove("dragover"));
+      dz.addEventListener("drop", async (e)=>{
+        e.preventDefault();
+        dz.classList.remove("dragover");
+        if(!currentProjectId){ toast("Select a project first"); return; }
+        const files = Array.from(e.dataTransfer.files || []);
+        if(files.length) await uploadFiles(files);
+      });
+
+      input.addEventListener("change", async ()=>{
+        if(!currentProjectId){ toast("Select a project first"); input.value=""; return; }
+        const files = Array.from(input.files || []);
+        if(files.length) await uploadFiles(files);
+        input.value = "";
+      });
+    }
+
+    function pickFiles(){ document.getElementById("file").click(); }
+
+    async function uploadFiles(files){
+      const cls = document.getElementById("doc-class").value;
+
+      for(const f of files){
+        const fd = new FormData();
+        fd.append("file", f);
+        fd.append("project_id", String(currentProjectId));
+        fd.append("classification", cls);
+
+        const r = await fetch("/documents/upload", { method:"POST", body: fd });
+        if(!r.ok){
+          const t = await r.text();
+          console.error("upload error:", t);
+          toast(`Upload failed: ${f.name}`);
+          continue;
+        }
+        const j = await r.json();
+        toast(`Uploaded: ${f.name} (${j.chunks_created} chunks)`);
+      }
+      await loadDocuments();
+    }
+
+    async function loadDocuments(){
+      const box = document.getElementById("docs");
+
+      if(!currentProjectId){
+        box.innerHTML = `<div class="hint">Select a project to see documents.</div>`;
+        return;
+      }
+
+      const r = await fetch(`/documents?project_id=${currentProjectId}`);
+      const docs = await r.json();
+
+      if(!docs.length){
+        box.innerHTML = `<div class="hint">No documents yet. Upload files above.</div>`;
+        return;
+      }
+
+      box.innerHTML = docs.map(d => `
+        <div class="result">
+          <div class="result-top">
+            <div>
+              <p class="r-title">📄 ${escapeHtml(d.filename || "document")}</p>
+              <p class="r-meta">Type: ${escapeHtml(d.file_type)} • Class: ${escapeHtml(d.classification)} • Chunks: ${d.total_chunks || 0}</p>
+            </div>
+            <div class="row">
+              <span class="score">${d.indexed ? "Indexed" : "Not indexed"}</span>
+              <button class="btn btn-danger btn-small" onclick="confirmDeleteDocument(${d.id}, '${escapeHtml(d.filename || "document")}')">Delete</button>
+            </div>
+          </div>
+          <div class="code">${escapeHtml((d.document_purpose || (d.metadata && d.metadata.document_purpose) || "—"))}</div>
+        </div>
+      `).join("");
+    }
+
+    // ---- RAG ----
+    async function runRag(){
+      if(!currentProjectId){ toast("Select a project first"); return; }
+      const q = document.getElementById("q").value.trim();
+      if(!q){ toast("Enter a question"); return; }
+
+      const mode = document.getElementById("rag-mode").value;
+      const top_k = Number(document.getElementById("topk").value || 20);
+      const min_similarity = Number(document.getElementById("mins").value || 0.25);
+
+      const out = document.getElementById("rag-out");
+      out.innerHTML = `<div class="hint">Running…</div>`;
+
+      try{
+        if(mode === "search"){
+          const r = await fetch("/rag/search", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ query:q, project_id:currentProjectId, top_k, min_similarity })
+          });
+          const j = await r.json();
+          renderChunkResults(j.results || []);
+          toast(`Search: ${j.count || 0} results`);
+        } else {
+          const r = await fetch("/rag/answer", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ project_id:currentProjectId, query:q, top_k, min_similarity })
+          });
+          const j = await r.json();
+          renderAnswer(j);
+          toast("Answer ready");
+        }
+      }catch(e){
+        console.error(e);
+        out.innerHTML = `<div class="hint" style="color:var(--bad)">Request failed. Check console/server logs.</div>`;
+        toast("Request failed");
+      }
+    }
+
+    function scoreBadge(sim){
+      const s = clamp01(sim);
+      return `
+        <span class="score-wrap">
+          <span class="score ${scoreClass(s)}">${percent(s)}% match</span>
+          <span class="tooltip">${tooltipHtml()}</span>
+        </span>
+      `;
+    }
+
+    function renderChunkResults(results){
+      const out = document.getElementById("rag-out");
+      if(!results || !results.length){
+        out.innerHTML = `<div class="hint">No results returned. Try lowering min similarity (e.g. 0.20) or upload more docs.</div>`;
+        return;
+      }
+
+      out.innerHTML = results.map(r => {
+        const sim = clamp01(r.similarity_score);
+        return `
+          <div class="result">
+            <div class="result-top">
+              <div>
+                <p class="r-title">${escapeHtml(r.document_name || "Unknown document")}</p>
+                <p class="r-meta">${escapeHtml(r.classification || "-")} • chunk: <span style="font-family:var(--mono)">${escapeHtml(r.chunk_id || "")}</span></p>
+              </div>
+              ${scoreBadge(sim)}
+            </div>
+            <div class="code">${escapeHtml(r.content || "")}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderAnswer(payload){
+      const out = document.getElementById("rag-out");
+      const answer = payload.answer || [];
+      const cites = payload.citations_used || [];
+      const ctx = payload.context_chunks || []; // ✅ your API returns context_chunks
+
+      let html = "";
+
+      html += `
+        <div class="result">
+          <div class="result-top">
+            <div>
+              <p class="r-title">Answer</p>
+              <p class="r-meta">Citations: ${escapeHtml(cites.join(", ") || "—")}</p>
+              <p class="r-meta">Trace: ${escapeHtml(payload.llm_trace || "—")}</p>
+            </div>
+            <span class="score good">RAG</span>
+          </div>
+          <div class="code">${escapeHtml(Array.isArray(answer) ? answer.join("\n\n") : String(answer))}</div>
+        </div>
+      `;
+
+      if(ctx && ctx.length){
+        html += `<div class="hint" style="margin:8px 2px 10px">Retrieved context</div>`;
+        html += ctx.map(c => {
+          const sim = clamp01(c.similarity_score);
+          return `
+            <div class="result">
+              <div class="result-top">
+                <div>
+                  <p class="r-title">${escapeHtml(c.document_name || "Unknown")}</p>
+                  <p class="r-meta">${escapeHtml(c.classification || "-")} • chunk: <span style="font-family:var(--mono)">${escapeHtml(c.chunk_id || "")}</span></p>
+                </div>
+                ${scoreBadge(sim)}
+              </div>
+              <div class="code">${escapeHtml(c.content || "")}</div>
+            </div>
+          `;
+        }).join("");
+      } else {
+        html += `<div class="hint">No context chunks returned by API.</div>`;
+      }
+
+      out.innerHTML = html;
+    }
+
+    // ---- Modal confirm ----
+    function openModal(title, text, onConfirm){
+      document.getElementById("modal-title").textContent = title;
+      document.getElementById("modal-text").textContent = text;
+      const btn = document.getElementById("modal-confirm");
+      btn.onclick = async () => { await onConfirm(); closeModal(); };
+      document.getElementById("modal").style.display = "flex";
+    }
+    function closeModal(){
+      document.getElementById("modal").style.display = "none";
+    }
+
+    function confirmDeleteDocument(docId, filename){
+      openModal(
+        "Delete document",
+        `Delete "${filename}"? This removes it from storage and vector index.`,
+        async () => {
+          const r = await fetch(`/documents/${docId}`, { method:"DELETE" });
+          if(!r.ok){
+            const t = await r.text();
+            console.error(t);
+            toast("Delete failed");
+            return;
+          }
+          toast("Document deleted");
+          await loadDocuments();
+        }
+      );
+    }
+
+    function confirmDeleteProject(){
+      if(!currentProjectId) return;
+      const p = projects.find(x => x.id === currentProjectId);
+      openModal(
+        "Delete project",
+        `Delete project "${p?.name || currentProjectId}"? This will delete its documents too.`,
+        async () => {
+          const r = await fetch(`/projects/${currentProjectId}`, { method:"DELETE" });
+          if(!r.ok){
+            const t = await r.text();
+            console.error(t);
+            toast("Project delete failed");
+            return;
+          }
+          toast("Project deleted");
+          currentProjectId = null;
+          document.getElementById("current-project").textContent = "No project selected";
+          document.getElementById("project-summary").textContent = "Select or create a project.";
+          document.getElementById("btn-del-project").disabled = true;
+          document.getElementById("docs").innerHTML = "";
+          document.getElementById("rag-out").innerHTML = "";
+          await refreshProjects();
+        }
+      );
+    }
+
+    // init
+    (async function init(){
+      await apiHealth();
+      await refreshProjects();
+      setupDropzone();
+    })();
+  </script>
+</body>
+</html>
