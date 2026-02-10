@@ -7,8 +7,8 @@ A **lightweight MVP** to test RAG (Retrieval-Augmented Generation) features.
 - Enhanced project creation with rich metadata
 - Document upload (PDF, DOCX, CSV, TXT, JSON)
 - Automatic text extraction, chunking, and embedding
-- Semantic search across documents
-- 100% local embeddings (no API costs!)
+- Semantic search across documents with **ChromaDB vector database**
+- 100% local embeddings (no API costs!) using Sentence Transformers
 
 ## 🚀 Quick Start
 
@@ -87,6 +87,11 @@ Upload and automatically process:
 - TXT (plain text)
 - JSON (structured data)
 
+All documents are:
+- Chunked into semantic segments
+- Embedded using **Sentence Transformers** (all-MiniLM-L6-v2)
+- Stored in **ChromaDB** vector database for fast similarity search
+
 ### 3. RAG Search
 
 Semantic search across all documents:
@@ -131,4 +136,15 @@ Change port in command: `uvicorn main:app --port 8002`
 The system will automatically fall back to:
 1. **Ollama** (if installed locally): `ollama pull llama3.2`
 2. **Chunks-only mode**: Returns relevant document snippets without LLM synthesis
+
+**ChromaDB issues:**
+
+If you encounter vector database errors:
+```bash
+# Delete and rebuild the vector database
+rm -rf storage/chroma/
+# Or on Windows:
+# Remove-Item -Recurse -Force storage\chroma\
+```
+Then re-upload your documents to rebuild the index.
 
