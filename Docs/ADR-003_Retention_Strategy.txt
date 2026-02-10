@@ -1,0 +1,3 @@
+ADR-003 Retention Strategy
+Date: 2026-02-07
+KYC 5y, Transactions 10y, Logs 13m.
